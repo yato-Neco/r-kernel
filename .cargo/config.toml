@@ -1,0 +1,16 @@
+[build]
+target = "riscv64gc-unknown-none-elf"
+rustflags = ["-Ctarget-feature=+v", "-Cpanic=abort"]
+
+build-std = ["core", "compiler_builtins", "alloc"]
+
+[target.riscv64gc-unknown-none-elf]
+runner = """
+qemu-system-riscv64 \
+-machine virt \
+-cpu rv64,v=true,vlen=512 \
+-bios default \
+-nographic \
+-serial mon:stdio \
+-kernel
+"""
