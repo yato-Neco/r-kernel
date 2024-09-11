@@ -1,7 +1,8 @@
 # Agnus-OS
 
-ロボット用OS
-
 # 参考文献
 [RISC-V Instruction Set Specifications](https://msyksphinz-self.github.io/riscv-isadoc/html/index.html)
+</br>
 [The RISC-V Instruction Set Manual](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf)
+</br>
+[Writing an OS in 1,000 Lines](https://operating-system-in-1000-lines.vercel.app/ja/welcome)
