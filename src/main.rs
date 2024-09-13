@@ -45,8 +45,6 @@ fn main() {
     unsafe {
         //asm!("csrw stvec, {addr_trap_entry}\n", addr_trap_entry = in(reg) addr_trap_entry );
         stvec::write(addr_trap_entry, TrapMode::Direct);
-
-        //asm!("nop");
     };
 
 
@@ -88,6 +86,7 @@ fn main() {
     panic!();
     */
     vi32();
+    vu8();
     panic!();
 
 }
@@ -185,15 +184,11 @@ fn vi32() {
 
     unsafe {
         asm!(
-            "mv t1, {0}",
-            "mv t2, {1}",
-            "mv t3, {2}",
-            "mv t4, {3}",
-            "vsetvli t0, t1, e32, m1, ta, ma",
-            "vle32.v v1, (t2)",
-            "vle32.v v2, (t3)",
+            "vsetvli t0, {0}, e32, m1, ta, ma",
+            "vle32.v v1, ({1})",
+            "vle32.v v2, ({2})",
             "vadd.vv v3, v1, v2",
-            "vse32.v v3, (t4)",
+            "vse32.v v3, ({3})",
             in(reg) vector_length,
             in(reg) &vector1 as *const i32,
             in(reg) &vector2 as *const i32,
@@ -212,16 +207,12 @@ fn vu8() {
     let vector_length = vector1.len() as u32;
 
     unsafe {
-        rvv_asm::rvv_asm!(
-            "mv t1, {0}",
-            "mv t2, {1}",
-            "mv t3, {2}",
-            "mv t4, {3}",
-            "vsetvli t0, t1, e8, m1",
-            "vle8.v v1, (t2)",
-            "vle8.v v2, (t3)",
+        asm!(
+            "vsetvli t0, {0}, e8, m1, ta, ma",
+            "vle8.v v1, ({1})",
+            "vle8.v v2, ({2})",
             "vadd.vv v3, v1, v2",
-            "vse8.v v3, (t4)",
+            "vse8.v v3, ({3})",
             in(reg) vector_length,
             in(reg) &vector1 as *const _,
             in(reg) &vector2 as *const _,
