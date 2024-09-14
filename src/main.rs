@@ -21,6 +21,7 @@ use crate::{
     proc::print_process,
 };
 use riscv::register::*;
+
 use stvec::TrapMode;
 
 #[no_mangle]
@@ -44,16 +45,16 @@ fn main() {
     
     unsafe {
         //asm!("csrw stvec, {addr_trap_entry}\n", addr_trap_entry = in(reg) addr_trap_entry );
-        stvec::write(addr_trap_entry, TrapMode::Direct);
+        stvec::write(addr_trap_entry, TrapMode::Vectored);
     };
 
+    init_timer();
 
-
-    unsafe{
-        //let mut o:u64; 
-        //asm!("csrr {o}, mvendorid", o = out(reg) o );
-        //println!("{}",o);
+    unsafe {
+        sie::set_stimer();
+        riscv::interrupt::supervisor::enable();
     }
+
 
     /*
 
@@ -68,7 +69,7 @@ fn main() {
 
     /* 
     panic!();
-    init_timer();
+    
     unsafe {
         IDLE_PROC = proc::Process::new(*core::ptr::null());
         CURRENT_PROC = IDLE_PROC;
@@ -85,10 +86,10 @@ fn main() {
 
     panic!();
     */
-    vi32();
-    vu8();
-    panic!();
-
+    //vi32();
+    //vu8();
+    //shutdown();
+    loop{}
 }
 
 
@@ -231,3 +232,13 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     }
 }
 
+
+fn shutdown() {
+    unsafe {
+        asm!(
+            "ecall",
+            in("a6") 0,
+            in("a7") 8,
+        );
+    }
+}

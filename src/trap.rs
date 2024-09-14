@@ -1,4 +1,6 @@
-use crate::{interrupt::timer_interrupt, println};
+use riscv::register::{mcause, scause, sip};
+
+use crate::{interrupt::{interrupt, timer_interrupt}, println};
 use core::arch::asm;
 type RregisterSize = u64;
 use crate::print;
@@ -119,28 +121,40 @@ pub unsafe extern "C" fn trap_entry() {
 
 #[no_mangle]
 extern "C" fn handle_trap(trap_frame: &mut TrapFrame) {
-    let mut scause: u64;
+    let scause = scause::read();
     let mut stval: u64;
     let mut sepc: u64;
 
     let pending: u64;
-    println!("handle!!!");
     unsafe {
-        asm!("csrr {}, scause", out(reg) scause);
-        asm!("csrr {}, stval", out(reg) stval);
-        asm!("csrr {}, sepc", out(reg) sepc);
+        //asm!("csrr {}, scause", out(reg) scause);
+        //asm!("csrr {}, stval", out(reg) stval);
+        //asm!("csrr {}, sepc", out(reg) sepc);
     }
 
-   
-    println!("scause: {:#010x}",scause);
-    
-    //println!("{}",(pending & (1 << 7)));
+    //println!("scause: {:#010x}",scause);
+    println!("cause: {:?}",scause.cause());
+    println!("is_interrupt: {:?}",scause.is_interrupt());
+    println!("is_exception: {:?}",scause.is_exception());
+    println!("code: {:?}",scause.code());
+    println!("bits: {:x}",scause.bits());
+    println!("stimer: {:?}", sip::read().stimer());
+    if scause.is_interrupt() {
 
-    match scause {
+        interrupt();
+        
+
+    }
+    panic!()
+    //println!("{}",(pending & (1 << 7)));
+    /*
+     match scause {
         7 => timer_interrupt(trap_frame),
         2 => exception(stval, scause, sepc, trap_frame),
         _ => exception(stval, scause, sepc, trap_frame),
     }
+     */
+   
 }
 
 fn exception(
