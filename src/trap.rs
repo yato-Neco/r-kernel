@@ -1,7 +1,10 @@
-use riscv::register::{mcause, scause, sip};
+use riscv::register::{mcause, scause, sip, stval, stvec, time};
 
-use crate::{interrupt::{interrupt, timer_interrupt}, println};
-use core::arch::asm;
+use crate::{
+    interrupt::{*},
+    println,
+};
+use core::arch::{asm, global_asm};
 type RregisterSize = u64;
 use crate::print;
 #[derive(Debug)]
@@ -41,140 +44,96 @@ pub struct TrapFrame {
 
 #[naked]
 #[no_mangle]
+
 pub unsafe extern "C" fn trap_entry() {
     asm!(
-        "csrrw sp, sscratch, sp\n",
-        "addi sp, sp, -8 * 31\n",
-        "sd ra,  8 * 0(sp)\n",
-        "sd gp,  8 * 1(sp)\n",
-        "sd tp,  8 * 2(sp)\n",
-        "sd t0,  8 * 3(sp)\n",
-        "sd t1,  8 * 4(sp)\n",
-        "sd t2,  8 * 5(sp)\n",
-        "sd t3,  8 * 6(sp)\n",
-        "sd t4,  8 * 7(sp)\n",
-        "sd t5,  8 * 8(sp)\n",
-        "sd t6,  8 * 9(sp)\n",
-        "sd a0,  8 * 10(sp)\n",
-        "sd a1,  8 * 11(sp)\n",
-        "sd a2,  8 * 12(sp)\n",
-        "sd a3,  8 * 13(sp)\n",
-        "sd a4,  8 * 14(sp)\n",
-        "sd a5,  8 * 15(sp)\n",
-        "sd a6,  8 * 16(sp)\n",
-        "sd a7,  8 * 17(sp)\n",
-        "sd s0,  8 * 18(sp)\n",
-        "sd s1,  8 * 19(sp)\n",
-        "sd s2,  8 * 20(sp)\n",
-        "sd s3,  8 * 21(sp)\n",
-        "sd s4,  8 * 22(sp)\n",
-        "sd s5,  8 * 23(sp)\n",
-        "sd s6,  8 * 24(sp)\n",
-        "sd s7,  8 * 25(sp)\n",
-        "sd s8,  8 * 26(sp)\n",
-        "sd s9,  8 * 27(sp)\n",
-        "sd s10, 8 * 28(sp)\n",
-        "sd s11, 8 * 29(sp)\n",
+        "csrw sscratch, sp\n",
+        "addi  sp, sp, -8*17\n",
+        "sd    ra, 0*8(sp)\n",
+        "sd    a0, 1*8(sp)\n",
+        "sd    a1, 2*8(sp)\n",
+        "sd    a2, 3*8(sp)\n",
+        "sd    a3, 4*8(sp)\n",
+        "sd    a4, 5*8(sp)\n",
+        "sd    a5, 6*8(sp)\n",
+        "sd    a6, 7*8(sp)\n",
+        "sd    a7, 8*8(sp)\n",
+        "sd    t0, 9*8(sp)\n",
+        "sd    t1, 10*8(sp)\n",
+        "sd    t2, 11*8(sp)\n",
+        "sd    t3, 12*8(sp)\n",
+        "sd    t4, 13*8(sp)\n",
+        "sd    t5, 14*8(sp)\n",
+        "sd    t6, 15*8(sp)\n",
+        "sd    s0, 16*8(sp)\n",
+        
         "csrr a0, sscratch\n",
-        "sd a0, 8 * 30(sp)\n",
-        "addi a0, sp, 8 * 31\n",
-        "csrw sscratch, a0\n",
+        "sd a0, 8 * 17(sp)\n",
 
         "mv a0, sp\n",
         "call handle_trap\n",
 
-        "ld ra,  8 * 0(sp)\n",
-        "ld gp,  8 * 1(sp)\n",
-        "ld tp,  8 * 2(sp)\n",
-        "ld t0,  8 * 3(sp)\n",
-        "ld t1,  8 * 4(sp)\n",
-        "ld t2,  8 * 5(sp)\n",
-        "ld t3,  8 * 6(sp)\n",
-        "ld t4,  8 * 7(sp)\n",
-        "ld t5,  8 * 8(sp)\n",
-        "ld t6,  8 * 9(sp)\n",
-        "ld a0,  8 * 10(sp)\n",
-        "ld a1,  8 * 11(sp)\n",
-        "ld a2,  8 * 12(sp)\n",
-        "ld a3,  8 * 13(sp)\n",
-        "ld a4,  8 * 14(sp)\n",
-        "ld a5,  8 * 15(sp)\n",
-        "ld a6,  8 * 16(sp)\n",
-        "ld a7,  8 * 17(sp)\n",
-        "ld s0,  8 * 18(sp)\n",
-        "ld s1,  8 * 19(sp)\n",
-        "ld s2,  8 * 20(sp)\n",
-        "ld s3,  8 * 21(sp)\n",
-        "ld s4,  8 * 22(sp)\n",
-        "ld s5,  8 * 23(sp)\n",
-        "ld s6,  8 * 24(sp)\n",
-        "ld s7,  8 * 25(sp)\n",
-        "ld s8,  8 * 26(sp)\n",
-        "ld s9,  8 * 27(sp)\n",
-        "ld s10, 8 * 28(sp)\n",
-        "ld s11, 8 * 29(sp)\n",
-        "ld sp,  8 * 30(sp)\n",
+        "ld    ra, 0*8(sp)",
+        "ld    a0, 1*8(sp)",
+        "ld    a1, 2*8(sp)",
+        "ld    a2, 3*8(sp)",
+        "ld    a3, 4*8(sp)",
+        "ld    a4, 5*8(sp)",
+        "ld    a5, 6*8(sp)",
+        "ld    a6, 7*8(sp)",
+        "ld    a7, 8*8(sp)",
+        "ld    t0, 9*8(sp)",
+        "ld    t1, 10*8(sp)",
+        "ld    t2, 11*8(sp)",
+        "ld    t3, 12*8(sp)",
+        "ld    t4, 13*8(sp)",
+        "ld    t5, 14*8(sp)",
+        "ld    t6, 15*8(sp)",
+        "ld    s0, 16*8(sp)",
+        "addi  sp, sp, 8*17",
         "sret\n",
         options(noreturn)
     );
 }
 
+
 #[no_mangle]
-extern "C" fn handle_trap(trap_frame: &mut TrapFrame) {
+pub unsafe  extern "C" fn some_handler(trap_frame: &mut TrapFrame) {
+    println!("some_handler!!!");
+
     let scause = scause::read();
-    let mut stval: u64;
-    let mut sepc: u64;
-
-    let pending: u64;
-    unsafe {
-        //asm!("csrr {}, scause", out(reg) scause);
-        //asm!("csrr {}, stval", out(reg) stval);
-        //asm!("csrr {}, sepc", out(reg) sepc);
-    }
-
-    //println!("scause: {:#010x}",scause);
-    println!("cause: {:?}",scause.cause());
-    println!("is_interrupt: {:?}",scause.is_interrupt());
-    println!("is_exception: {:?}",scause.is_exception());
-    println!("code: {:?}",scause.code());
-    println!("bits: {:x}",scause.bits());
-    println!("stimer: {:?}", sip::read().stimer());
-    if scause.is_interrupt() {
-
-        interrupt();
-        
-
-    }
-    panic!()
-    //println!("{}",(pending & (1 << 7)));
-    /*
-     match scause {
-        7 => timer_interrupt(trap_frame),
-        2 => exception(stval, scause, sepc, trap_frame),
-        _ => exception(stval, scause, sepc, trap_frame),
-    }
-     */
+    println!("cause: {:?}", scause.cause());
+    println!("is_interrupt: {:?}", scause.is_interrupt());
+    println!("is_exception: {:?}", scause.is_exception());
+    println!("code: {:?}", scause.code());
+    println!("bits: {:x}", scause.bits());
    
+    panic!()
+
 }
 
-fn exception(
-    stval: RregisterSize,
-    scause: RregisterSize,
-    sepc: RregisterSize,
-    trap_frame: &mut TrapFrame,
-) {
-    let trap_name = match stval {
-        0x00000000 => "Instruction address misaligned",
-        0x00000001 => "Instruction access fault",
-        _ => "_",
-    };
+#[no_mangle]
+pub unsafe  extern "C" fn handle_trap(trap_frame: &mut TrapFrame) {
+    println!("handle_trap!!!");
+    let scause = scause::read();
+    
+    let is_interrupt = scause.is_interrupt();
+    let is_timer = sip::read().stimer();
+    println!("cause: {:?}", scause.cause());
+    println!("is_interrupt: {:?}", scause.is_interrupt());
+    println!("is_exception: {:?}", scause.is_exception());
+    println!("code: {:?}", scause.code());
+    println!("bits: {:x}", scause.bits());
 
-    panic!(
-        "\n\
-        unexpected trap:\n\
-        scause: {scause:#010x},\nstval: {stval:#010x},\n\
-        sepc: {sepc:#010x},\n\
-        trap_name: {trap_name},\n\
-        trap_frame: {trap_frame:#?}",
-    );
+    if is_interrupt {
+        if is_timer {
+            init_timer();
+        }
+        
+    }
+    
+    panic!()
+
 }
+
+

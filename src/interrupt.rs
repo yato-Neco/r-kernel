@@ -5,25 +5,19 @@ use core::error;
 use crate::print;
 use crate::println;
 
-const TIMER_INTERVAL: u64 = 50000000;
+const TIMER_INTERVAL: u64 = 10000000;
 
-use riscv::register::{sie, sip, sstatus, time};
+use riscv::register::time;
 
-pub(crate) fn interrupt() {
-    let is_timer_interrput = sip::read().stimer();
-    if is_timer_interrput {
-        init_timer()
-    }
-}
-
-pub fn init_timer() {
+#[no_mangle]
+pub extern "C" fn init_timer() {
     let time = time::read64();
-    println!("{}", time);
 
-    println!("{:?}", set_next_timer(time + TIMER_INTERVAL));
+    set_next_timer(time + TIMER_INTERVAL);
 }
 
-fn set_next_timer(time: u64) -> Result<u64, i64> {
+#[no_mangle]
+pub extern "C" fn set_next_timer(time: u64) {
     /*
     unsafe {
         // mtimecmpに次の時間を設定（この例ではQEMUやVirt機などのRISC-V標準レジスタを想定）
@@ -44,15 +38,13 @@ fn set_next_timer(time: u64) -> Result<u64, i64> {
             inlateout("a0") time - 1 => error,
             lateout("a1") value,
         );
-        match error {
-            0 => Result::Ok(value),
-            e => Result::Err(e),
-        }
     }
 }
 
-pub fn timer_interrupt(trap_frame: &mut TrapFrame) {
-    panic!()
+#[no_mangle]
+pub extern "C" fn timer_handler() {
+    println!("hwllo");
+    panic!();
 }
 
 /*

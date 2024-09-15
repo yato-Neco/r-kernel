@@ -11,6 +11,8 @@ SECTIONS
     *(.text .text.*)
   }
 
+  
+
   .rodata : {
     *(.rdata .rodata .rodata.*)
   }
@@ -26,3 +28,4 @@ SECTIONS
   . += 128 * 1024; /* 128KB */
   __stack_top = .;
 }
+

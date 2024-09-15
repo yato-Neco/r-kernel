@@ -5,30 +5,35 @@
 #![feature(naked_functions)]
 #![feature(asm_experimental_arch)]
 
-use core::{arch::asm, borrow::Borrow, ptr};
+use core::{
+    arch::{asm, global_asm},
+    borrow::Borrow,
+    ptr,
+};
 mod allocator;
 mod interrupt;
+mod mem;
 mod print;
 mod proc;
 mod trap;
-mod mem;
 use alloc::{collections::VecDeque, vec};
 use print::Writer;
 use proc::{yield_, CURRENT_PROC, IDLE_PROC};
+use trap::{trap_entry};
 extern crate alloc;
-use crate::{
-    interrupt::init_timer,
-    proc::print_process,
-};
+use crate::{interrupt::init_timer, proc::print_process};
 use riscv::register::*;
-
-use stvec::TrapMode;
 
 #[no_mangle]
 static INIT_SP: [u8; 4096 * 1028] = [0; 4096 * 1028];
 
 #[no_mangle]
 static STACK_SIZE: usize = 4096 * 1028;
+
+global_asm!(include_str!("trap.S"));
+extern "C" {
+    fn trap();
+}
 
 #[no_mangle]
 #[link_section = ".entry"]
@@ -41,13 +46,22 @@ pub unsafe extern "C" fn _entry() {
 #[no_mangle]
 fn main() {
     //trapをシステムyレジスタに登録
-    let addr_trap_entry = trap::trap_entry as usize;
-    
+    /*
+    MTVECのMODEフィールドに1を設定する。
+    例外発生時の動作はダイレクトモードと同じ。割り込み発生時は、割り込み要因によりエントリが異なる。"MTVECが指すアドレス + 割り込み要因×4" が指すエントリへ制御を移す。
+    */
+    /*
+    mode Vectored にしても配置されるpcが正しくないバグ？なのでダイレクトモードに指定して受け取りはVectoredモード
+    */
+    let addr_trap_entry = trap_entry as usize;
+
     unsafe {
-        //asm!("csrw stvec, {addr_trap_entry}\n", addr_trap_entry = in(reg) addr_trap_entry );
-        stvec::write(addr_trap_entry, TrapMode::Vectored);
+        asm!("csrw stvec, {addr_trap_entry}\n", addr_trap_entry = in(reg) addr_trap_entry);
     };
 
+    println!("{:x}", stvec::read().address());
+    println!("{:?}", stvec::read().trap_mode());
+    //println!("start");
     init_timer();
 
     unsafe {
@@ -55,6 +69,11 @@ fn main() {
         riscv::interrupt::supervisor::enable();
     }
 
+    unsafe {
+        let mtimecmp = 0x0200_4000 as *mut u64;
+        //println!("{}",mtimecmp.read());
+        //mtimecmp.write_volatile(1111111);
+    }
 
     /*
 
@@ -64,17 +83,17 @@ fn main() {
         let b = ptr.offset(15);
         println!("{}",*b);
     }
-     
+
     */
 
-    /* 
+    /*
     panic!();
-    
+
     unsafe {
         IDLE_PROC = proc::Process::new(*core::ptr::null());
         CURRENT_PROC = IDLE_PROC;
     }
-    
+
 
     proc::Process::new(task_a);
     //proc::Process::new(task_b);
@@ -89,15 +108,20 @@ fn main() {
     //vi32();
     //vu8();
     //shutdown();
-    loop{}
-}
 
+    loop {
+        for _ in 0..400000000 {
+            unsafe { asm!("nop") }
+        }
+
+        println!("loop\n");
+    }
+}
 
 fn task_a() {
     println!("starting process A\n");
     loop {
         //println!("A");
-        
 
         yield_();
 
@@ -231,7 +255,6 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
         unsafe { asm!("nop") }
     }
 }
-
 
 fn shutdown() {
     unsafe {

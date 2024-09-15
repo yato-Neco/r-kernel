@@ -4,6 +4,9 @@ rustflags = ["-Ctarget-feature=+v", "-Cpanic=abort"]
 
 build-std = ["core", "compiler_builtins", "alloc"]
 
+[alias]
+asm = "rustc --release -- --emit asm"
+
 [target.riscv64gc-unknown-none-elf]
 runner = """
 qemu-system-riscv64 \
