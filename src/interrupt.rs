@@ -1,3 +1,4 @@
+use crate::proc::yield_;
 use crate::trap::TrapFrame;
 use core::arch::asm;
 use core::error;
@@ -26,6 +27,7 @@ pub extern "C" fn set_next_timer(time: u64) {
         mtimecmp.write_volatile(time);
     }
     */
+    
 
     unsafe {
         let value: u64;

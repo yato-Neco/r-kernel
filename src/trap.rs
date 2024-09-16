@@ -96,28 +96,13 @@ pub unsafe extern "C" fn trap_entry() {
     );
 }
 
-
-#[no_mangle]
-pub unsafe  extern "C" fn some_handler(trap_frame: &mut TrapFrame) {
-    println!("some_handler!!!");
-
-    let scause = scause::read();
-    println!("cause: {:?}", scause.cause());
-    println!("is_interrupt: {:?}", scause.is_interrupt());
-    println!("is_exception: {:?}", scause.is_exception());
-    println!("code: {:?}", scause.code());
-    println!("bits: {:x}", scause.bits());
-   
-    panic!()
-
-}
-
 #[no_mangle]
 pub unsafe  extern "C" fn handle_trap(trap_frame: &mut TrapFrame) {
     println!("handle_trap!!!");
     let scause = scause::read();
     
     let is_interrupt = scause.is_interrupt();
+    let is_exception =  scause.is_exception();
     let is_timer = sip::read().stimer();
     println!("cause: {:?}", scause.cause());
     println!("is_interrupt: {:?}", scause.is_interrupt());
@@ -131,9 +116,10 @@ pub unsafe  extern "C" fn handle_trap(trap_frame: &mut TrapFrame) {
         }
         
     }
-    
-    panic!()
 
+    if is_exception {
+        panic!()
+    }
 }
 
 

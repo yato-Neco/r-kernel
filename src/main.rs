@@ -19,7 +19,7 @@ mod trap;
 use alloc::{collections::VecDeque, vec};
 use print::Writer;
 use proc::{yield_, CURRENT_PROC, IDLE_PROC};
-use trap::{trap_entry};
+use trap::trap_entry;
 extern crate alloc;
 use crate::{interrupt::init_timer, proc::print_process};
 use riscv::register::*;
@@ -30,38 +30,22 @@ static INIT_SP: [u8; 4096 * 1028] = [0; 4096 * 1028];
 #[no_mangle]
 static STACK_SIZE: usize = 4096 * 1028;
 
-global_asm!(include_str!("trap.S"));
-extern "C" {
-    fn trap();
-}
-
 #[no_mangle]
 #[link_section = ".entry"]
 pub unsafe extern "C" fn _entry() {
     asm!("la sp, INIT_SP", "ld a0, STACK_SIZE", "add sp, sp, a0",);
-
-    main();
-}
-
-#[no_mangle]
-fn main() {
     //trapをシステムyレジスタに登録
-    /*
-    MTVECのMODEフィールドに1を設定する。
-    例外発生時の動作はダイレクトモードと同じ。割り込み発生時は、割り込み要因によりエントリが異なる。"MTVECが指すアドレス + 割り込み要因×4" が指すエントリへ制御を移す。
-    */
-    /*
-    mode Vectored にしても配置されるpcが正しくないバグ？なのでダイレクトモードに指定して受け取りはVectoredモード
-    */
     let addr_trap_entry = trap_entry as usize;
 
     unsafe {
         asm!("csrw stvec, {addr_trap_entry}\n", addr_trap_entry = in(reg) addr_trap_entry);
     };
+    main();
+}
 
-    println!("{:x}", stvec::read().address());
-    println!("{:?}", stvec::read().trap_mode());
-    //println!("start");
+#[no_mangle]
+fn main() {
+    let mut i = 0;
     init_timer();
 
     unsafe {
@@ -69,42 +53,20 @@ fn main() {
         riscv::interrupt::supervisor::enable();
     }
 
-    unsafe {
-        let mtimecmp = 0x0200_4000 as *mut u64;
-        //println!("{}",mtimecmp.read());
-        //mtimecmp.write_volatile(1111111);
-    }
 
     /*
-
-    let a:usize = 0;
-    unsafe {
-        let ptr = a as *mut usize;
-        let b = ptr.offset(15);
-        println!("{}",*b);
-    }
-
-    */
-
-    /*
-    panic!();
-
     unsafe {
         IDLE_PROC = proc::Process::new(*core::ptr::null());
         CURRENT_PROC = IDLE_PROC;
     }
 
-
-    proc::Process::new(task_a);
+    //proc::Process::new(task_a);
     //proc::Process::new(task_b);
     //proc::Process::new(task_c);
-
-    //print_process();
-
-    yield_();
-
-    panic!();
     */
+   
+    
+
     //vi32();
     //vu8();
     //shutdown();
@@ -114,16 +76,18 @@ fn main() {
             unsafe { asm!("nop") }
         }
 
-        println!("loop\n");
+        println!("loop: {} \n",i);
+        i+=1;
     }
 }
 
 fn task_a() {
     println!("starting process A\n");
     loop {
-        //println!("A");
+        println!("A");
+       
 
-        yield_();
+        //yield_();
 
         //rintln!("task sp: {:x}",(((*PROC_A).sp) as *const u64).read());
         //println!("task sp: {:x}",(((*PROC_B).sp) as *const u64).read());
@@ -147,7 +111,7 @@ fn task_c() {
     println!("starting process C\n");
     loop {
         println!("C");
-        yield_();
+        //yield_();
 
         /*
         unsafe {
@@ -164,7 +128,7 @@ fn task_b() {
     println!("starting process B\n");
     loop {
         println!("B");
-        yield_();
+        //yield_();
 
         /*
         unsafe {
