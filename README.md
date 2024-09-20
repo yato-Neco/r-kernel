@@ -1,5 +1,15 @@
 # Agnus-OS
 
+# 目的
+ロボットに搭載するOSを開発
+
+# 周辺機器の対応
+- MIPI
+- USB
+- Ethernet
+- GPIO
+
+
 # 参考文献
 [RISC-V Instruction Set Specifications](https://msyksphinz-self.github.io/riscv-isadoc/html/index.html)
 </br>
