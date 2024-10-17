@@ -16,7 +16,7 @@ mod mem;
 mod print;
 mod proc;
 mod trap;
-use alloc::{collections::VecDeque, vec};
+use alloc::{collections::VecDeque, string::ToString, vec};
 use print::Writer;
 use proc::{yield_, CURRENT_PROC, IDLE_PROC};
 use trap::trap_entry;
@@ -34,6 +34,7 @@ static STACK_SIZE: usize = 4096 * 1028;
 #[link_section = ".entry"]
 pub unsafe extern "C" fn _entry() {
     asm!("la sp, INIT_SP", "ld a0, STACK_SIZE", "add sp, sp, a0",);
+
     //trapをシステムyレジスタに登録
     let addr_trap_entry = trap_entry as usize;
 
@@ -44,8 +45,10 @@ pub unsafe extern "C" fn _entry() {
 }
 
 #[no_mangle]
-fn main() {
-    let mut i = 0;
+fn main() {     
+    println!("init timer");
+    let sepc = sepc::read();
+    println!("sepc: {:x}", sepc);
     init_timer();
 
     unsafe {
@@ -54,58 +57,80 @@ fn main() {
     }
 
 
-    /*
+    println!("spawn IDLE_PROC");
+
     unsafe {
-        IDLE_PROC = proc::Process::new(*core::ptr::null());
+        IDLE_PROC = proc::Process::new(idle_task);
         CURRENT_PROC = IDLE_PROC;
     }
+    println!("spawn task_a");
 
-    //proc::Process::new(task_a);
+    proc::Process::new(task_a);
+    println!("spawn task_b");
     //proc::Process::new(task_b);
-    //proc::Process::new(task_c);
-    */
-   
-    
+   // println!("main loop");
 
-    //vi32();
-    //vu8();
-    //shutdown();
+    //yield_();
+    unsafe {
+        //asm!("unimp")
+    }
 
     loop {
-        for _ in 0..400000000 {
-            unsafe { asm!("nop") }
-        }
-
-        println!("loop: {} \n",i);
-        i+=1;
+   
     }
 }
 
+
+#[no_mangle]
 fn task_a() {
     println!("starting process A\n");
     loop {
         println!("A");
-       
-
-        //yield_();
-
-        //rintln!("task sp: {:x}",(((*PROC_A).sp) as *const u64).read());
-        //println!("task sp: {:x}",(((*PROC_B).sp) as *const u64).read());
-        /*
-
-        if i > 10 {
-            unsafe{
-                println!("unimp");
-                asm!("unimp");
-            };
-        }
-        */
-
         for _ in 0..400000000 {
             unsafe { asm!("nop") }
         }
     }
 }
+
+#[no_mangle]
+fn task_b() {
+    println!("starting process B\n");
+    loop {
+        println!("B");
+        for _ in 0..400000000 {
+            unsafe { asm!("nop") }
+        }
+    }
+}
+
+
+
+#[panic_handler]
+#[no_mangle]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    trap::print_trap();
+    println!("{:?}", _info);
+    //shutdown();
+    loop {
+        riscv::asm::wfi();
+    }
+}
+
+#[no_mangle]
+fn shutdown() {
+    unsafe {
+        asm!(
+            "ecall",
+            in("a6") 0,
+            in("a7") 8,
+        );
+    }
+}
+
+
+/* 
+
+
 
 fn task_c() {
     println!("starting process C\n");
@@ -124,23 +149,7 @@ fn task_c() {
         }
     }
 }
-fn task_b() {
-    println!("starting process B\n");
-    loop {
-        println!("B");
-        //yield_();
 
-        /*
-        unsafe {
-            switch_context(&mut (*PROC_B).sp, &(*PROC_A).sp);
-        }
-        */
-
-        for _ in 0..400000000 {
-            unsafe { asm!("nop") }
-        }
-    }
-}
 
 fn sleep() {
     loop {
@@ -212,20 +221,15 @@ fn vu8() {
     println!("Result: {:?}", result);
 }
 
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    println!("{:?}", _info);
-    loop {
-        unsafe { asm!("nop") }
-    }
-}
 
-fn shutdown() {
-    unsafe {
-        asm!(
-            "ecall",
-            in("a6") 0,
-            in("a7") 8,
-        );
+
+*/
+
+
+#[no_mangle]
+fn idle_task() {
+    loop {
+        // 何もしない、または低優先度のタスクを実行
+        //unsafe { asm!("nop") }
     }
 }

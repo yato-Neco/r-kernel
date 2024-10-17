@@ -24,19 +24,20 @@ pub struct Process {
     pub pid: usize,
     pub state: State,
     pub sp: usize,
-    pub stack: [u8; 4098],
+    pub stack: [u8; 8192],
 }
 ///sd(64bit) sw(32bit)
 ///ld(64bit) lw(32bit)
 
 ///コンテキストスイッチ
 #[naked]
+#[no_mangle]
 pub extern "C" fn switch_context(prev_sp: *mut usize, next_sp: *const usize) {
-    //
+    //認識としてはspのアドレスに状態を保存して引き出している。
     unsafe {
         asm!(
             "addi sp, sp, -13 * 8",
-            "sd ra,  0  * 8(sp)",
+            "sd ra,  0  * 8(sp)",   //raをspの0に代入
             "sd s0,  1  * 8(sp)",
             "sd s1,  2  * 8(sp)",
             "sd s2,  3  * 8(sp)",
@@ -49,8 +50,8 @@ pub extern "C" fn switch_context(prev_sp: *mut usize, next_sp: *const usize) {
             "sd s9,  10 * 8(sp)",
             "sd s10, 11 * 8(sp)",
             "sd s11, 12 * 8(sp)",
-            "sd sp, (a0)",
-            "ld sp, (a1)",
+            "sd sp, (a0)",  //spを関数引数レジスタに代入
+            "ld sp, (a1)",  //spを関数戻り値レジスタに代入
             "ld ra,  0  * 8(sp)",
             "ld s0,  1  * 8(sp)",
             "ld s1,  2  * 8(sp)",
@@ -109,14 +110,17 @@ impl Process {
             //println!("pc pointer: {:x}", pc as u64);
             // スタックを13個のレジスタ分確保し初期化
 
-            for _ in 0..13 {
+            for _ in 0..12 {
                 sp = sp.offset(-1);
                 ptr::write_volatile(sp, 0);
             }
 
-            // 呼び出し先のアドレスを設定
             sp = sp.offset(-1);
             ptr::write_volatile(sp, pc as usize);
+
+            // 呼び出し先のアドレスを設定
+            //sp = sp.offset(-1);
+            //ptr::write_volatile(sp, pc as usize);
 
             _proc.pid = i + 1;
 
@@ -125,8 +129,9 @@ impl Process {
 
             //spのポインタを保存
             _proc.sp = sp as usize;
+            //ptr::write_volatile(&mut _proc.sp as *mut _, sp as usize);
 
-            //println!("sp pointer: {:?}", _proc.sp as *mut usize);
+            //println!("sp pointer: {:?}", _proc.sp);
 
             return _proc;
         }
@@ -140,14 +145,22 @@ impl Process {
             pid: 0,
             state: State::UNUSED,
             sp: 0,
-            stack: [0; 4098],
+            stack: [0; 8192],
         }
     }
 }
 
+
+
 ///次のプロセスを探してコンテキストスイッチ
+#[no_mangle]
 pub fn yield_() {
+
+
     unsafe {
+        
+        
+
         let mut next = IDLE_PROC;
         /*
         println!(
@@ -165,7 +178,7 @@ pub fn yield_() {
 
             let proc = &mut (PROCS[((*CURRENT_PROC).pid + i) % PROCS_MAX]);
             //プロセスの状態がRUNNABLEかつプロセスIDが1以上
-            if proc.state == State::RUNNABLE && proc.pid > 1 {
+            if proc.state == State::RUNNABLE && proc.pid > 0 {
                 /*
                 println!(
                     "pid: {}, sp: {:x}  state: {:?}",
@@ -213,10 +226,10 @@ pub fn yield_() {
 
         
         //スタックのポインタを
-        let ptr = (*next).stack.as_mut_ptr().add((*next).stack.len() - 1) as *mut usize;
+        let ptr = (*next).stack.as_mut_ptr().add((*next).stack.len()) as *mut usize;
 
         //スタックのポインタをレジスタsscratchへ書き込み
-        asm!("csrw sscratch, {ptr}",ptr = in(reg) ptr);
+        asm!("csrw sscratch, {ptr}",ptr = in(reg) ptr,options( nostack, preserves_flags));
 
         //実行中のプロセスのポインタをprevに代入
         let prev = CURRENT_PROC;
@@ -231,7 +244,7 @@ pub fn yield_() {
 
 }
 
-
+#[no_mangle]
 pub fn print_process() {
     println!("Process:");
     unsafe {

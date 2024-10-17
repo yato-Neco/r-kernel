@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+use alloc::string::ToString;
+
 
 #[macro_export]
 macro_rules! print {
@@ -19,17 +21,30 @@ macro_rules! println {
 pub struct Writer;
 
 impl core::fmt::Write for Writer {
+    #[no_mangle]
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         
         for c in s.bytes() {
+        
+            let value: u64;
+            let error: i64;
+
             unsafe {
+                
                 asm!(
                     "ecall",
                     in("a0") c,
-                    in("a6") 0,
                     in("a7") 1,
-                )
+                    lateout("a0") error,
+                    lateout("a1") value,
+                );
             }
+
+            match error {
+                0 => (),
+                _ => panic!("{}",value.to_string()),
+            };
+          
         }
         Ok(())
     }

@@ -14,6 +14,7 @@ pub struct BumpAllocator {
 }
 
 impl BumpAllocator {
+    #[no_mangle]
     const fn new() -> Self {
         Self {
             arena: RefCell::new([0; ARENA_SIZE]),
@@ -23,6 +24,7 @@ impl BumpAllocator {
 }
 
 unsafe impl GlobalAlloc for BumpAllocator {
+    #[no_mangle]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let next = self.next.get();
 
@@ -45,10 +47,12 @@ unsafe impl GlobalAlloc for BumpAllocator {
         return ptr.add(alloc_start);
     }
 
+    #[no_mangle]
     // BumpAllocatorはメモリを開放しない
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
 }
 
+#[no_mangle]
 fn aligned_addr(addr: usize, align: usize) -> usize {
     if addr % align == 0 {
         addr

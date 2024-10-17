@@ -1,34 +1,20 @@
 use crate::proc::yield_;
-use crate::trap::TrapFrame;
 use core::arch::asm;
-use core::error;
-//Artificial Linguistic Internet Computer Entity
 use crate::print;
 use crate::println;
 
-const TIMER_INTERVAL: u64 = 10000000;
+const TIMER_INTERVAL: u64 = 5000000;
+const FIRST_TIMER_INTERVAL: u64 = 8000000;
 
 use riscv::register::time;
 
 #[no_mangle]
-pub extern "C" fn init_timer() {
+pub fn init_timer() {
     let time = time::read64();
-
-    set_next_timer(time + TIMER_INTERVAL);
+    set_next_timer(time + FIRST_TIMER_INTERVAL).unwrap();
 }
-
 #[no_mangle]
-pub extern "C" fn set_next_timer(time: u64) {
-    /*
-    unsafe {
-        // mtimecmpに次の時間を設定（この例ではQEMUやVirt機などのRISC-V標準レジスタを想定）
-        let mtimecmp = 0x0200_4000 as *mut u64;
-        //println!("{}",mtimecmp.read());
-        mtimecmp.write_volatile(time);
-    }
-    */
-    
-
+fn set_next_timer(time: u64)  -> Result<u64, u64> {
     unsafe {
         let value: u64;
         let error: i64;
@@ -40,12 +26,25 @@ pub extern "C" fn set_next_timer(time: u64) {
             inlateout("a0") time - 1 => error,
             lateout("a1") value,
         );
+
+        match error {
+            0 => Ok(value),
+            _ => Err(value),
+        }
     }
 }
 
 #[no_mangle]
+pub fn set_timer() {
+    let time = time::read64();
+    set_next_timer(time + TIMER_INTERVAL).unwrap();
+    //println!("yield");
+    yield_();
+}
+
+#[no_mangle]
 pub extern "C" fn timer_handler() {
-    println!("hwllo");
+    
     panic!();
 }
 
