@@ -40,10 +40,13 @@ impl core::fmt::Write for Writer {
                 );
             }
 
+            
             match error {
                 0 => (),
-                _ => panic!("{}",value.to_string()),
+                _ => panic!(""),
             };
+            
+            
           
         }
         Ok(())

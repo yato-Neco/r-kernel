@@ -3,9 +3,11 @@ use core::arch::asm;
 use crate::print;
 use crate::println;
 
-const TIMER_INTERVAL: u64 = 5000000;
-const FIRST_TIMER_INTERVAL: u64 = 8000000;
+const TIMER_INTERVAL: u64 = 15000000;
+const FIRST_TIMER_INTERVAL: u64 = 5000000;
 
+use alloc::string::ToString;
+use riscv::register::sie;
 use riscv::register::time;
 
 #[no_mangle]
@@ -13,8 +15,9 @@ pub fn init_timer() {
     let time = time::read64();
     set_next_timer(time + FIRST_TIMER_INTERVAL).unwrap();
 }
+
 #[no_mangle]
-fn set_next_timer(time: u64)  -> Result<u64, u64> {
+pub fn set_next_timer(time: u64)  -> Result<u64, u64> {
     unsafe {
         let value: u64;
         let error: i64;
@@ -38,8 +41,7 @@ fn set_next_timer(time: u64)  -> Result<u64, u64> {
 pub fn set_timer() {
     let time = time::read64();
     set_next_timer(time + TIMER_INTERVAL).unwrap();
-    //println!("yield");
-    yield_();
+    //yield_();
 }
 
 #[no_mangle]

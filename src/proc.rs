@@ -1,8 +1,8 @@
 use crate::{print, println};
-use core::{arch::asm, ptr};
+use core::{arch::asm, ptr,arch::naked_asm};
 
 /// プロセス最大数
-const PROCS_MAX: usize = 5;
+const PROCS_MAX: usize = 60;
 /// プロセスの配列
 pub static mut PROCS: [Process; PROCS_MAX] = [Process::default(); PROCS_MAX];
 
@@ -10,6 +10,33 @@ pub static mut PROCS: [Process; PROCS_MAX] = [Process::default(); PROCS_MAX];
 pub static mut IDLE_PROC: *mut Process = core::ptr::null_mut();
 /// 実行中のプロセスのポインタが入る変数
 pub static mut CURRENT_PROC: *mut Process = core::ptr::null_mut();
+
+#[repr(C)]
+pub struct Context {
+    ra:u64,
+    s0:u64,
+    s1:u64,
+    s2:u64,
+    s3:u64,
+    s4:u64,
+    s5:u64,
+    s6:u64,
+    s7:u64,
+    s8:u64,
+    s9:u64,
+    s10:u64,
+    s11:u64,
+}
+/* 
+#[no_mangle]
+pub unsafe fn get_context() -> *const Context {
+    let ctxp: *const Context;
+
+    
+
+    ctxp
+}*/
+
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,10 +51,8 @@ pub struct Process {
     pub pid: usize,
     pub state: State,
     pub sp: usize,
-    pub stack: [u8; 8192],
+    pub stack: [u8; 4098],
 }
-///sd(64bit) sw(32bit)
-///ld(64bit) lw(32bit)
 
 ///コンテキストスイッチ
 #[naked]
@@ -35,7 +60,7 @@ pub struct Process {
 pub extern "C" fn switch_context(prev_sp: *mut usize, next_sp: *const usize) {
     //認識としてはspのアドレスに状態を保存して引き出している。
     unsafe {
-        asm!(
+        naked_asm!(
             "addi sp, sp, -13 * 8",
             "sd ra,  0  * 8(sp)",   //raをspの0に代入
             "sd s0,  1  * 8(sp)",
@@ -67,7 +92,6 @@ pub extern "C" fn switch_context(prev_sp: *mut usize, next_sp: *const usize) {
             "ld s11, 12 * 8(sp)",
             "addi sp, sp, 13 * 8",
             "ret",
-            options(noreturn),
         )
     }
 }
@@ -116,6 +140,7 @@ impl Process {
             }
 
             sp = sp.offset(-1);
+            //*sp = pc as usize;
             ptr::write_volatile(sp, pc as usize);
 
             // 呼び出し先のアドレスを設定
@@ -145,7 +170,7 @@ impl Process {
             pid: 0,
             state: State::UNUSED,
             sp: 0,
-            stack: [0; 8192],
+            stack: [0; 4098],
         }
     }
 }
@@ -178,7 +203,7 @@ pub fn yield_() {
 
             let proc = &mut (PROCS[((*CURRENT_PROC).pid + i) % PROCS_MAX]);
             //プロセスの状態がRUNNABLEかつプロセスIDが1以上
-            if proc.state == State::RUNNABLE && proc.pid > 0 {
+            if proc.state == State::RUNNABLE && proc.pid > 1 {
                 /*
                 println!(
                     "pid: {}, sp: {:x}  state: {:?}",
@@ -226,7 +251,7 @@ pub fn yield_() {
 
         
         //スタックのポインタを
-        let ptr = (*next).stack.as_mut_ptr().add((*next).stack.len()) as *mut usize;
+        let ptr = (*next).stack.as_mut_ptr().add((*next).stack.len() - 1) as *mut usize;
 
         //スタックのポインタをレジスタsscratchへ書き込み
         asm!("csrw sscratch, {ptr}",ptr = in(reg) ptr,options( nostack, preserves_flags));

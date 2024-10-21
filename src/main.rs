@@ -4,6 +4,7 @@
 #![feature(const_trait_impl)]
 #![feature(naked_functions)]
 #![feature(asm_experimental_arch)]
+#![feature(fn_align)]
 
 use core::{
     arch::{asm, global_asm},
@@ -14,12 +15,14 @@ mod allocator;
 mod interrupt;
 mod mem;
 mod print;
+mod page;
 mod proc;
 mod trap;
 use alloc::{collections::VecDeque, string::ToString, vec};
 use print::Writer;
 use proc::{yield_, CURRENT_PROC, IDLE_PROC};
-use trap::trap_entry;
+use stvec::TrapMode;
+use trap::{trap_entry, vec_trap_entry};
 extern crate alloc;
 use crate::{interrupt::init_timer, proc::print_process};
 use riscv::register::*;
@@ -36,74 +39,83 @@ pub unsafe extern "C" fn _entry() {
     asm!("la sp, INIT_SP", "ld a0, STACK_SIZE", "add sp, sp, a0",);
 
     //trapをシステムyレジスタに登録
-    let addr_trap_entry = trap_entry as usize;
+    let addr_trap_entry = vec_trap_entry as usize;
 
+    stvec::write(addr_trap_entry, TrapMode::Vectored);
     unsafe {
-        asm!("csrw stvec, {addr_trap_entry}\n", addr_trap_entry = in(reg) addr_trap_entry);
+        //asm!("csrw stvec, {addr_trap_entry}", addr_trap_entry = in(reg) addr_trap_entry);
     };
     main();
 }
 
 #[no_mangle]
-fn main() {     
-    println!("init timer");
-    let sepc = sepc::read();
-    println!("sepc: {:x}", sepc);
+fn main() {
+    //println!("init timer");
+    //let sepc = sepc::read();
+    //println!("sepc: {:x}", sepc);
+
+    //println!("spawn IDLE_PROC");
+
+   
+
+    unsafe {
+        IDLE_PROC = proc::Process::new(idle_task);
+        CURRENT_PROC = IDLE_PROC;
+    }
+    //println!("spawn task_a");
+    proc::Process::new(task_a);
+    //println!("spawn task_b");
+    proc::Process::new(task_b);
+    // println!("main loop");
+
     init_timer();
 
     unsafe {
         sie::set_stimer();
         riscv::interrupt::supervisor::enable();
     }
+    
+   
 
+   // yield_();
 
-    println!("spawn IDLE_PROC");
-
-    unsafe {
-        IDLE_PROC = proc::Process::new(idle_task);
-        CURRENT_PROC = IDLE_PROC;
-    }
-    println!("spawn task_a");
-
-    proc::Process::new(task_a);
-    println!("spawn task_b");
-    //proc::Process::new(task_b);
-   // println!("main loop");
-
-    //yield_();
+    //
     unsafe {
         //asm!("unimp")
     }
-
-    loop {
-   
-    }
+    yield_();
+    shutdown();
 }
-
 
 #[no_mangle]
 fn task_a() {
+    let mut i = 0;
     println!("starting process A\n");
     loop {
-        println!("A");
+        println!("A: {}",i.to_string());
+        //yield_();
         for _ in 0..400000000 {
             unsafe { asm!("nop") }
         }
+        i+=1;
     }
 }
 
 #[no_mangle]
 fn task_b() {
     println!("starting process B\n");
+    let mut i = 0;
+
     loop {
-        println!("B");
+        println!("B: {}",i.to_string());
+        //yield_();
         for _ in 0..400000000 {
             unsafe { asm!("nop") }
         }
+        i+=1;
+
     }
 }
-
-
 
 #[panic_handler]
 #[no_mangle]
@@ -127,8 +139,7 @@ fn shutdown() {
     }
 }
 
-
-/* 
+/*
 
 
 
@@ -224,7 +235,6 @@ fn vu8() {
 
 
 */
-
 
 #[no_mangle]
 fn idle_task() {
