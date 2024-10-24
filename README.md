@@ -1,4 +1,4 @@
-# Agnus-OS
+# r-kernel
 
 # 目的
 ロボットに搭載するOSを開発
